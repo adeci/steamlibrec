@@ -1,0 +1,191 @@
+import requests
+from decouple import config
+import time
+from tqdm import tqdm
+import json
+
+API_KEY = config('STEAM_API_KEY')
+
+
+def check_hidden_playtime(library):
+    for playtime in library.values():
+        if int(playtime) != 0:
+            return False
+    return True
+
+
+def check_id_validity(steamid):
+    if not steamid.isdigit() or len(steamid) != 17 or not steamid.startswith('7656'):
+        return False
+    return True
+
+
+def get_steamid_from_profile(custom_profile_name):
+    api_call_url = 'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/'
+
+    parameters = {
+        'key': API_KEY,
+        'vanityurl': custom_profile_name
+    }
+
+    response = requests.get(api_call_url, params=parameters)
+    data = response.json()
+
+    if 'response' in data and 'success' in data['response'] and data['response']['success'] == 1:
+        steamid = data['response'].get('steamid', None)
+        return steamid
+    else:
+        tqdm.write('Failed to get steamid from custom url')
+        return None
+
+
+def public_check(steamid):
+
+    api_call_url = 'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/'
+
+    parameters = {
+        'key': API_KEY,
+        'steamids': steamid,
+        'format': 'json'
+    }
+
+    response = requests.get(api_call_url, params=parameters)
+
+    if response.status_code == 200:
+        data = response.json()
+
+        if 'response' in data and 'players' in data['response'] and data['response']['players']:
+            visibility = data['response']['players'][0].get(
+                'communityvisibilitystate', 0)
+            return visibility == 3
+        else:
+            tqdm.write('No data found for user with steamID ' + steamid)
+            return False
+    else:
+        tqdm.write('Failed to get data for profile with steamID ' + steamid)
+        return False
+
+
+def get_single_library(steamid):
+    library = {}
+
+    if not check_id_validity(steamid):
+        steamid = get_steamid_from_profile(steamid)
+
+    if public_check(steamid):
+        api_call_url = 'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/'
+
+        parameters = {
+            'key': API_KEY,
+            'steamid': steamid,
+            'include_appinfo': 'true',
+            'include_played_free_games': 'true',
+            'format': 'json'
+        }
+
+        response = requests.get(api_call_url, params=parameters)
+
+        if response.status_code == 200:
+            data = response.json()
+            if 'response' in data and 'games' in data['response']:
+                library = {game.get('name'): game.get('playtime_forever', 0)
+                           for game in data['response']['games']}
+
+            if check_hidden_playtime(library):
+                tqdm.write('Failed to fetch library for ' + steamid)
+                return False
+
+            print('Successfully fetched library for ' + steamid)
+            return library
+
+        else:
+            print('Failed to get data for profile library with steamid ' + steamid)
+    else:
+        print('Profile is not public!')
+
+
+def get_library(steamid, request_times):
+    library = {}
+
+    if not check_id_validity(steamid):
+        steamid = get_steamid_from_profile(steamid)
+        request_times.append(time.time())
+
+    request_times.append(time.time())
+    if public_check(steamid):
+        api_call_url = 'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/'
+
+        parameters = {
+            'key': API_KEY,
+            'steamid': steamid,
+            'include_appinfo': 'true',
+            'include_played_free_games': 'true',
+            'format': 'json'
+        }
+
+        response = requests.get(api_call_url, params=parameters)
+        request_times.append(time.time())
+
+        if response.status_code == 200:
+            data = response.json()
+            if 'response' in data and 'games' in data['response']:
+                library = {game.get('name'): game.get('playtime_forever', 0)
+                           for game in data['response']['games']}
+
+            if check_hidden_playtime(library):
+                tqdm.write('Failed to fetch library for ' + steamid)
+                return False
+
+            tqdm.write('Successfully fetched library for ' + steamid)
+            return library
+
+        else:
+            tqdm.write(
+                'Failed to get data for profile library with steamid ' + steamid)
+    else:
+        tqdm.write('Profile is not public!')
+
+
+def main():
+    filename = input('Input a group id list file: ')
+    filename = '../data/' + filename
+    ids = []
+    with open(filename, 'r') as f:
+        for line in f:
+            steamid = line.strip()
+            if len(steamid) > 0:
+                ids.append(steamid)
+    libraries_dict = {}
+    request_times = []
+
+    for id in tqdm(ids, desc='Fetch Progress', position=0):
+
+        time_now = time.time()
+        request_times = [
+            request_time for request_time in request_times if time_now - request_time < 60]
+
+        if len(request_times) >= 60:
+            with tqdm(total=60, desc="API Call Cooldown", leave=False, position=1) as pbar:
+                for i in range(60):
+                    time.sleep(1)
+                    pbar.update(1)
+            request_times = []
+
+        lib = get_library(id, request_times)
+        if lib:
+            libraries_dict[id] = lib
+
+    print('Fetched', str(len(libraries_dict)), 'total libraries')
+    success_rate = (len(libraries_dict) / len(ids)) * 100
+    print('Success rate: {}/{} = {:.2f}%'.format(len(libraries_dict),
+          len(ids), success_rate))
+
+    file = 'libraries.json'
+    with open('../data/' + file, 'w', encoding='utf-8') as f:
+        json.dump(libraries_dict, f, indent=4)
+
+    print('Completed writing libraries to file:', file)
+
+
+if __name__ == '__main__':
+    main()

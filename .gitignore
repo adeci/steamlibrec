@@ -7,3 +7,5 @@
 # Include the data folder but ignore its contents
 /data/*
 !/data/
+
+/src/__pycache__/
