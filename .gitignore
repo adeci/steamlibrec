@@ -1,0 +1,9 @@
+# Ignore the .env file at the root
+.env
+
+# Ignore the env folder at the root
+/env/
+
+# Include the data folder but ignore its contents
+/data/*
+!/data/
