@@ -6,6 +6,6 @@
 
 # Include the data folder but ignore its contents
 /data/*
-!/data/
+!/data/.gitkeep
 
 /src/__pycache__/
