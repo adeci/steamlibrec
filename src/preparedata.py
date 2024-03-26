@@ -48,10 +48,30 @@ def load_megalib(file):
     return megalib
 
 
+def save_megalib(megalib):
+    with open('../data/megalib.txt', 'w') as f:
+        for line in megalib:
+            f.write(line + '\n')
+
+
+def definive_library_games(library):
+    return dict(sorted(library.items(), key=lambda x: x[1], reverse=True)[:25])
+
+
+def create_megalib(file_data):
+    megalibrary = set()
+    for lib in file_data.values():
+        definitive_games = definive_library_games(lib)
+        megalibrary.update(definitive_games.keys())
+    return list(megalibrary)
+
+
 def main_prepare_data():
     file_data = input('Library file to load data from: ')
     file_data = '../data/' + file_data
     loaded_data = load_data(file_data)
+
+    save_megalib(create_megalib(file_data))
 
     prepared_data = prepare_data(loaded_data)
     save_file = input('Filename to save normalized library data to: ')
