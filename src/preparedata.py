@@ -58,6 +58,19 @@ def definive_library_games(library):
     return dict(sorted(library.items(), key=lambda x: x[1], reverse=True)[:25])
 
 
+def create_library_dict(file_data, megalib):
+    library_dict = {}
+
+    for lib, game_datas in file_data.items():
+        definive_games = definive_library_games(game_datas)
+        lib_data = {game: 0 for game in megalib}
+        lib_data.update({game: definive_games.get(game, 0)
+                        for game in megalib})
+        library_dict[lib] = lib_data
+
+    return library_dict
+
+
 def create_megalib(file_data):
     megalibrary = set()
     for lib in file_data.values():
@@ -67,18 +80,20 @@ def create_megalib(file_data):
 
 
 def main_prepare_data():
-    file_data = input('Library file to load data from: ')
-    file_data = '../data/' + file_data
+    # file_data = input('Library file to load data from: ')
+    file_data = '../data/libraries.json'
     loaded_data = load_data(file_data)
+    megalib = create_megalib(loaded_data)
+    save_megalib(megalib)
+    # prepared_data = prepare_data(loaded_data)
 
-    save_megalib(create_megalib(file_data))
+    # save_megalib(create_megalib(load_data))
 
-    prepared_data = prepare_data(loaded_data)
-    save_file = input('Filename to save normalized library data to: ')
-    save_data(prepared_data, '../data/' + save_file)
+    # save_file = input('Filename to save normalized library data to: ')
+    # save_data(prepared_data, '../data/' + save_file)
 
-    print('Normalized data prepared for model and saved under name:',
-          'data/' + save_file)
+    # print('Normalized data prepared for model and saved under name:',
+    #      'data/' + save_file)
 
 
 def main_prepare_single_user(user_library):
