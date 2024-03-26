@@ -20,7 +20,7 @@ def check_id_validity(steamid):
     return True
 
 
-def get_steamid_from_profile(custom_profile_name):
+def get_steamid_from_customid(custom_profile_name):
     api_call_url = 'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/'
 
     parameters = {
@@ -66,49 +66,11 @@ def public_check(steamid):
         return False
 
 
-def get_single_library(steamid):
+def get_library(steamid, aggregate_game_appid_dict, request_times):
     library = {}
 
     if not check_id_validity(steamid):
-        steamid = get_steamid_from_profile(steamid)
-
-    if public_check(steamid):
-        api_call_url = 'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/'
-
-        parameters = {
-            'key': API_KEY,
-            'steamid': steamid,
-            'include_appinfo': 'true',
-            'include_played_free_games': 'true',
-            'format': 'json'
-        }
-
-        response = requests.get(api_call_url, params=parameters)
-
-        if response.status_code == 200:
-            data = response.json()
-            if 'response' in data and 'games' in data['response']:
-                library = {game.get('name'): game.get('playtime_forever', 0)
-                           for game in data['response']['games']}
-
-            if check_hidden_playtime(library):
-                tqdm.write('Failed to fetch library for ' + steamid)
-                return False
-
-            print('Successfully fetched library for ' + steamid)
-            return library
-
-        else:
-            print('Failed to get data for profile library with steamid ' + steamid)
-    else:
-        print('Profile is not public!')
-
-
-def get_library(steamid, request_times):
-    library = {}
-
-    if not check_id_validity(steamid):
-        steamid = get_steamid_from_profile(steamid)
+        steamid = get_steamid_from_customid(steamid)
         request_times.append(time.time())
 
     request_times.append(time.time())
@@ -134,16 +96,31 @@ def get_library(steamid, request_times):
 
             if check_hidden_playtime(library):
                 tqdm.write('Failed to fetch library for ' + steamid)
-                return False
+                return False, steamid
 
             tqdm.write('Successfully fetched library for ' + steamid)
-            return library
+            refined_library = keep_top_ten_games(library)
+
+            appids = {game.get('name'): game.get('appid', 0)
+                      for game in data['response']['games']}
+            for game, appid in appids.items():
+                if game in refined_library:
+                    aggregate_game_appid_dict[game] = appid
+
+            return refined_library, steamid
 
         else:
             tqdm.write(
                 'Failed to get data for profile library with steamid ' + steamid)
     else:
         tqdm.write('Profile is not public!')
+
+
+def keep_top_ten_games(library):
+    sorted_by_playtime = sorted(
+        library.items(), key=lambda x: x[1], reverse=True)
+    refined_library = dict(sorted_by_playtime[:10])
+    return refined_library
 
 
 def main():
@@ -157,6 +134,7 @@ def main():
                 ids.append(steamid)
     libraries_dict = {}
     request_times = []
+    aggregate_game_appid_dict = {}
 
     for id in tqdm(ids, desc='Fetch Progress', position=0):
 
@@ -171,7 +149,7 @@ def main():
                     pbar.update(1)
             request_times = []
 
-        lib = get_library(id, request_times)
+        lib, id = get_library(id, aggregate_game_appid_dict, request_times)
         if lib:
             libraries_dict[id] = lib
 
@@ -179,12 +157,15 @@ def main():
     success_rate = (len(libraries_dict) / len(ids)) * 100
     print('Success rate: {}/{} = {:.2f}%'.format(len(libraries_dict),
           len(ids), success_rate))
-
+    print('Refining libraries dictionary to top ten games only...')
     file = 'libraries.json'
     with open('../data/' + file, 'w', encoding='utf-8') as f:
         json.dump(libraries_dict, f, indent=4)
-
     print('Completed writing libraries to file:', file)
+
+    with open('../data/game_ids.json', 'w', encoding='utf-8') as f:
+        json.dump(dict(sorted(aggregate_game_appid_dict.items())), f, indent=4)
+    print('Saved complete game to appid dictionary to file game_ids.json')
 
 
 if __name__ == '__main__':

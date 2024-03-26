@@ -40,11 +40,12 @@ def main():
     num = int(input("How many member ids to fetch: "))
     ids = get_group_profiles(groupurl, num)
     print('Fetched', str(len(ids)), 'unique profile IDs.')
-    filename = input('Filename to save group IDs to: ')
-    filename = '../data/' + filename
+    # filename = input('Filename to save group IDs to: ')
+    filename = '../data/user_ids.txt'
     with open(filename, 'w') as f:
         for id in ids:
             f.write(id + '\n')
+    print('Saved to user_ids.txt')
 
 
 if __name__ == '__main__':
