@@ -6,6 +6,27 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 
+def test_valid_connection():
+    try:
+        requests.get('https://www.google.com/', timeout=5)
+        return True
+    except (requests.ConnectionError, requests.Timeout):
+        return False
+
+
+def attempt_request(api_call_url):
+    while True:
+        try:
+            response = requests.get(api_call_url)
+            return response
+        except (requests.ConnectionError):
+            print('Lost connection. Reconnecting!')
+            while not test_valid_connection():
+                print('Cannot reconnect yet. Waiting a moment.')
+                time.sleep(10)
+            print("Valid connection re-established!")
+
+
 def load_game_appid_data(file):
     with open(file, 'r', encoding='utf-8') as f:
         return json.load(f)
@@ -13,7 +34,7 @@ def load_game_appid_data(file):
 
 def scrape_tags_from_appid(appid):
     site = 'https://store.steampowered.com/app/' + appid
-    response = requests.get(site)
+    response = attempt_request(site)
     if response.status_code == 200 and response.content:
         soup = BeautifulSoup(response.content, 'html.parser')
         tags_container = soup.find('div', class_='glance_tags popular_tags')
@@ -33,7 +54,7 @@ def get_game_tag_dict(game_appid_dict):
         game_tag_dict[game] = tags
 
         tqdm.write('Got [' + ', '.join(tags) + '] tags for ' + game)
-        time.sleep(5)
+        time.sleep(1)
     return game_tag_dict
 
 

@@ -132,9 +132,11 @@ def get_library(steamid, aggregate_game_appid_dict, request_times):
 
         else:
             tqdm.write(
-                'Failed to get data for profile library with steamid ' + steamid)
+                'Failed to get data for profile library with steamid ' + steamid + ' this should not happen with public check!')
+            return False, steamid
     else:
         tqdm.write('Profile is not public!')
+        return False, steamid
 
 
 def keep_top_ten_games(library):
@@ -163,7 +165,7 @@ def main():
         request_times = [
             request_time for request_time in request_times if time_now - request_time < 60]
 
-        if len(request_times) >= 60:
+        if len(request_times) >= 65:
             with tqdm(total=60, desc="API Call Cooldown", leave=False, position=1) as pbar:
                 for i in range(60):
                     time.sleep(1)
@@ -178,7 +180,6 @@ def main():
     success_rate = (len(libraries_dict) / len(ids)) * 100
     print('Success rate: {}/{} = {:.2f}%'.format(len(libraries_dict),
           len(ids), success_rate))
-    print('Refining libraries dictionary to top ten games only...')
     file = 'libraries.json'
     with open('../data/' + file, 'w', encoding='utf-8') as f:
         json.dump(libraries_dict, f, indent=4)
