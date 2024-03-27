@@ -7,6 +7,27 @@ import json
 API_KEY = config('STEAM_API_KEY')
 
 
+def test_valid_connection():
+    try:
+        requests.get('https://www.google.com/', timeout=5)
+        return True
+    except (requests.ConnectionError, requests.Timeout):
+        return False
+
+
+def attempt_request(api_call_url, parameters):
+    while True:
+        try:
+            response = requests.get(api_call_url, params=parameters)
+            return response
+        except (requests.ConnectionError):
+            print('Lost connection. Reconnecting!')
+            while not test_valid_connection():
+                print('Cannot reconnect yet. Waiting a moment.')
+                time.sleep(10)
+            print("Valid connection re-established!")
+
+
 def check_hidden_playtime(library):
     for playtime in library.values():
         if int(playtime) != 0:
@@ -28,7 +49,7 @@ def get_steamid_from_customid(custom_profile_name):
         'vanityurl': custom_profile_name
     }
 
-    response = requests.get(api_call_url, params=parameters)
+    response = attempt_request(api_call_url, parameters)
     data = response.json()
 
     if 'response' in data and 'success' in data['response'] and data['response']['success'] == 1:
@@ -49,7 +70,7 @@ def public_check(steamid):
         'format': 'json'
     }
 
-    response = requests.get(api_call_url, params=parameters)
+    response = attempt_request(api_call_url, parameters)
 
     if response.status_code == 200:
         data = response.json()
@@ -85,7 +106,7 @@ def get_library(steamid, aggregate_game_appid_dict, request_times):
             'format': 'json'
         }
 
-        response = requests.get(api_call_url, params=parameters)
+        response = attempt_request(api_call_url, parameters)
         request_times.append(time.time())
 
         if response.status_code == 200:
