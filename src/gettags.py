@@ -38,11 +38,16 @@ def scrape_tags_from_appid(appid):
     if response.status_code == 200 and response.content:
         soup = BeautifulSoup(response.content, 'html.parser')
         tags_container = soup.find('div', class_='glance_tags popular_tags')
-        tags = tags_container.find_all('a', class_='app_tag', limit=5)
-        tags_text = [tag.get_text(strip=True) for tag in tags]
+        if tags_container is not None:
+            tags = tags_container.find_all('a', class_='app_tag', limit=5)
+            tags_text = [tag.get_text(strip=True) for tag in tags]
+        else:
+            line = 'Error ' + str(appid) + ' must not be on steam anymore.'
+            tqdm.write(line)
+            tags_text = []
     else:
-        tqdm.write('Failed to get reply. Waiting 10s and trying again.')
-        time.sleep(10)
+        tqdm.write('Failed to get reply. Waiting a minute and trying again.')
+        time.sleep(60)
         tags_text = scrape_tags_from_appid(appid)
     return tags_text
 
@@ -54,7 +59,7 @@ def get_game_tag_dict(game_appid_dict):
         game_tag_dict[game] = tags
 
         tqdm.write('Got [' + ', '.join(tags) + '] tags for ' + game)
-        time.sleep(1)
+        time.sleep(3)
     return game_tag_dict
 
 

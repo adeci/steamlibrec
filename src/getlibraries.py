@@ -190,5 +190,37 @@ def main():
     print('Saved complete game to appid dictionary to file game_ids.json')
 
 
+def single_library_fetch(steamid):
+    ids = []
+    ids.append(steamid)
+
+    libraries_dict = {}
+    request_times = []
+    aggregate_game_appid_dict = {}
+
+    for id in tqdm(ids, desc='Fetch Progress', position=0):
+        time_now = time.time()
+        request_times = [
+            request_time for request_time in request_times if time_now - request_time < 60]
+
+        if len(request_times) >= 65:
+            with tqdm(total=60, desc="API Call Cooldown", leave=False, position=1) as pbar:
+                for i in range(60):
+                    time.sleep(1)
+                    pbar.update(1)
+            request_times = []
+
+        lib, id = get_library(id, aggregate_game_appid_dict, request_times)
+        if lib:
+            libraries_dict[id] = lib
+
+    print('Fetched', str(len(libraries_dict)), 'total libraries')
+    if len(libraries_dict) != 1:
+        print('Failed to get the single library.')
+        return False
+
+    return libraries_dict
+
+
 if __name__ == '__main__':
     main()
