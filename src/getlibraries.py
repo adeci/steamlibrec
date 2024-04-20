@@ -87,7 +87,7 @@ def public_check(steamid):
         return False
 
 
-def get_library(steamid, aggregate_game_appid_dict, request_times):
+def get_library(steamid, aggregate_game_appid_dict, request_times, single=False):
     library = {}
 
     if not check_id_validity(steamid):
@@ -128,7 +128,10 @@ def get_library(steamid, aggregate_game_appid_dict, request_times):
                 if game in refined_library:
                     aggregate_game_appid_dict[game] = appid
 
-            return refined_library, steamid
+            if single:
+                return refined_library, steamid, library
+            else:
+                return refined_library, steamid
 
         else:
             tqdm.write(
@@ -210,7 +213,8 @@ def single_library_fetch(steamid):
                     pbar.update(1)
             request_times = []
 
-        lib, id = get_library(id, aggregate_game_appid_dict, request_times)
+        lib, id, all_lib = get_library(
+            id, aggregate_game_appid_dict, request_times, True)
         if lib:
             libraries_dict[id] = lib
 
@@ -219,7 +223,7 @@ def single_library_fetch(steamid):
         print('Failed to get the single library.')
         return False
 
-    return libraries_dict
+    return libraries_dict, all_lib
 
 
 if __name__ == '__main__':

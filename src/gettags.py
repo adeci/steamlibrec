@@ -32,15 +32,17 @@ def load_game_appid_data(file):
         return json.load(f)
 
 
-def scrape_tags_from_appid(appid):
+def scrape_tags_from_appid(appid, blacklist):
     site = 'https://store.steampowered.com/app/' + appid
     response = attempt_request(site)
     if response.status_code == 200 and response.content:
         soup = BeautifulSoup(response.content, 'html.parser')
         tags_container = soup.find('div', class_='glance_tags popular_tags')
         if tags_container is not None:
-            tags = tags_container.find_all('a', class_='app_tag', limit=5)
-            tags_text = [tag.get_text(strip=True) for tag in tags]
+            tags = tags_container.find_all(
+                'a', class_='app_tag', limit=5 + len(blacklist))
+            tags_text = [tag.get_text(strip=True) for tag in tags if tag.get_text(
+                strip=True) not in blacklist][:5]
         else:
             line = 'Error ' + str(appid) + ' must not be on steam anymore.'
             tqdm.write(line)
@@ -48,16 +50,15 @@ def scrape_tags_from_appid(appid):
     else:
         tqdm.write('Failed to get reply. Waiting a minute and trying again.')
         time.sleep(60)
-        tags_text = scrape_tags_from_appid(appid)
+        tags_text = scrape_tags_from_appid(appid, blacklist)
     return tags_text
 
 
-def get_game_tag_dict(game_appid_dict):
+def get_game_tag_dict(game_appid_dict, blacklist):
     game_tag_dict = {}
     for game, appid in tqdm(game_appid_dict.items(), desc='Tag Fetch Progress', position=0):
-        tags = scrape_tags_from_appid(str(appid))
+        tags = scrape_tags_from_appid(str(appid), blacklist)
         game_tag_dict[game] = tags
-
         tqdm.write('Got [' + ', '.join(tags) + '] tags for ' + game)
         time.sleep(3)
     return game_tag_dict
@@ -98,10 +99,9 @@ def clean_tag_freq_dict(tag_freq_dict):
         else:
             removed_list.append(tag)
 
-    print(len(removed_list), 'tags filteres out:', removed_list)
+    print(len(removed_list), 'tags filtered out:', removed_list)
     print('There are now', len(clean_dict),
           'tags to be used out of the original', len(tag_freq_dict))
-
     return clean_dict
 
 
@@ -114,8 +114,10 @@ def filter_game_tag_dict(game_tag_dict, cleaned_tag_freq_dict):
 
 
 def main():
+    blacklist = ['Free to Play', 'Multiplayer',
+                 'Early Access']  # Define your blacklist
     game_appid_dict = load_game_appid_data('../data/game_ids.json')
-    game_tag_dict = get_game_tag_dict(game_appid_dict)
+    game_tag_dict = get_game_tag_dict(game_appid_dict, blacklist)
     tag_freq_dict = get_frequency_dict(game_tag_dict)
     cleaned_tag_freq_dict = clean_tag_freq_dict(tag_freq_dict)
     filtered_game_tag_dict = filter_game_tag_dict(
