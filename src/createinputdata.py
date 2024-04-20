@@ -34,7 +34,6 @@ def create_tag_time_matrix(game_tag_dict, game_playtime_dict, exclude_tags):
 
 
 def max_scale_normalization(tag_time_matrix):
-    # Ensure users are rows and tags are columns
     df = pd.DataFrame(tag_time_matrix).transpose()
     max_values = df.max(axis=1)
     scaled_df = df.div(max_values, axis=0)
@@ -44,8 +43,10 @@ def max_scale_normalization(tag_time_matrix):
 def main():
     game_tag_dict = load_json_file('../data/game_tags.json')
     game_playtime_dict = load_json_file('../data/libraries.json')
-    exclude_tags = ['Action', 'RPG', 'Adventure', 'Indie', 'Strategy',
-                    'Open World', 'Simulation', 'Singleplayer', 'Casual', 'FPS']
+    exclude_tags = ['Action', 'RPG', 'Adventure',
+                    'Indie', 'Strategy', 'Open World',
+                    'Simulation', 'Singleplayer', 'Casual',
+                    'FPS']
 
     tag_time_matrix = create_tag_time_matrix(
         game_tag_dict, game_playtime_dict, exclude_tags)
@@ -58,4 +59,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -15,19 +15,15 @@ def find_optimal_eps(data, plot_path):
     neigh = NearestNeighbors(n_neighbors=4)
     nbrs = neigh.fit(data)
     distances, indices = nbrs.kneighbors(data)
-
     distances = np.sort(distances, axis=0)[:, 3]
     kneedle = KneeLocator(range(len(distances)), distances, curve='convex',
                           direction='increasing', interp_method='polynomial')
-
-    # Plot the knee
     plt.figure(figsize=(8, 4))
     kneedle.plot_knee()
     plt.xlabel('Points sorted by distance')
     plt.ylabel('Distance')
     plt.savefig(plot_path)
     plt.close()
-
     return kneedle.elbow, kneedle.elbow_y
 
 
@@ -36,20 +32,16 @@ def apply_dbscan(data, eps, min_samples):
     labels = db.labels_
     cluster_df = pd.DataFrame({'Cluster': labels}, index=data.index)
     cluster_df.to_csv('../data/dbscan_cluster_labels.csv')
-
     return labels
 
 
 def list_top_tags_per_cluster(data, labels):
-    # Remove noise labels
     clusters = [label for label in set(labels) if label >= 0]
     top_tags = {}
-
     for cluster in clusters:
         cluster_data = data[labels == cluster]
         mean_values = cluster_data.mean(axis=0).sort_values(ascending=False)
         top_tags[cluster] = mean_values.head(3).index.tolist()
-
     return top_tags
 
 
@@ -74,7 +66,6 @@ def merge_clusters_by_tags(cluster_tags, threshold=0.5):
             if similarity >= threshold:
                 merge_map[cluster_j] = cluster_i
 
-    # Assign new cluster IDs and merge tags
     for cluster in unique_clusters:
         if cluster not in merge_map:
             new_cluster_tags[new_cluster_id] = cluster_tags[cluster]
@@ -105,7 +96,6 @@ def main():
     merged_tags, cluster_id_map = merge_clusters_by_tags(
         top_tags, threshold=0.5)
 
-    # Update the cluster labels with merged IDs
     cluster_df = pd.read_csv('../data/dbscan_cluster_labels.csv')
     cluster_df['MergedCluster'] = cluster_df['Cluster'].map(cluster_id_map)
     cluster_df.to_csv('../data/merged_dbscan_cluster_labels.csv', index=False)
