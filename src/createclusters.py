@@ -104,7 +104,6 @@ def main():
     for cluster, tags in merged_tags.items():
         print(f"Merged Cluster {cluster}: Top tags: {tags}")
 
-    # Save the merged cluster tags to a JSON file
     save_merged_clusters(merged_tags, '../data/merged_clusters.json')
     print("Merged cluster tags saved to 'merged_clusters.json'.")
 
